@@ -15,6 +15,8 @@ const RTYPE=['Sumbangan','Tajaan','Yuran ahli','Geran','Lain-lain'];
 const PTYPE=['Staf','Vendor','Tuntutan','Lain-lain'];
 const TARGET_JAM=160;
 const TNAME={ujian:'Master Taqwim (SALINAN UJIAN)',sebenar:'Master Taqwim (SEBENAR)'};
+/* Tanpa PIN: pengguna hanya tekan butang peranan. */
+const ROLE_PINS={presiden:'5364',admin:'5145',finance:'0337'};
 const ROLE_NAME={presiden:'Presiden',admin:'Admin & SU',finance:'Finance'};
 const TABS={
   admin:[['ringkas','Ringkasan'],['tugas','Tugasan'],['presiden','Presiden'],['aktiviti','Aktiviti'],['staf','Anas & Uzma']],
@@ -126,12 +128,10 @@ function render(){
 }
 function vSetup(){
   if(phase==='loading'||phase==='boot')return `<div class="setup band"><div class="card"><div class="brand2"><b>HEAR ME</b> · Sistem</div><p class="muted">Memuatkan data dari Google Sheet…</p></div></div>`;
-  return `<div class="setup band"><form class="card" id="setup"><div class="brand2"><b>HEAR ME</b> · Sistem</div><h1>Log masuk</h1>
+  return `<div class="setup band"><div class="card" id="setup"><div class="brand2"><b>HEAR ME</b> · Sistem</div><h1>Pilih paparan</h1>
     ${bootErr?`<div class="notice">${esc(bootErr)}</div>`:''}
-    ${API_URL?'':`<label for="s-api">Link Web app (dari Apps Script)<input id="s-api" type="url" required value="${esc(api)}" placeholder="https://script.google.com/macros/s/…/exec"></label>`}
-    <label for="s-pin">PIN anda<input id="s-pin" type="password" autocomplete="current-password" required></label>
-    <button class="btn primary" type="submit">Masuk</button>
-    <p class="muted">PIN menentukan paparan anda: Presiden, Admin atau Finance. Peranti ini akan ingat sehingga anda log keluar.</p></form></div>`;
+    ${Object.keys(ROLE_PINS).map(r=>`<button class="btn primary" type="button" data-role="${r}" style="width:100%;margin-top:8px">${esc(ROLE_NAME[r])}</button>`).join('')}
+    <p class="muted">Tekan "Log keluar" dalam sistem untuk tukar paparan.</p></div></div>`;
 }
 const sec=(title,sub,body)=>`<section class="sec"><div class="sechead"><h2>${title}</h2>${sub?`<span>${sub}</span>`:''}</div>${body}</section>`;
 const seg=(key,opts,cur)=>`<div class="seg">${opts.map(([k,l])=>`<button data-seg="${key}" data-val="${k}" aria-pressed="${cur===k}">${l}</button>`).join('')}</div>`;
@@ -474,6 +474,7 @@ document.addEventListener('click',async e=>{
   if(d.paystaf){const w=d.paystaf,rate=num(store.get('hm-rate')),hh=Math.round(monthHours(w,thisMonth())*100)/100;const x=newItem('payments');
     Object.assign(x,{to:w,type:'Staf',what:`Bayaran jam kerja ${monthLabel(thisMonth())} (${fmtH(hh)} jam × ${rm(rate)})`,amount:Math.round(hh*rate*100)/100});flt.pay='semua';doSave('payments',x);render();return}
   if(d.reload){load(true);return}
+  if(d.role){pin=ROLE_PINS[d.role];store.set('hm-pin',pin);bootErr='';ME=null;load();return}
   if(d.logout){store.del('hm-pin');pin='';S=null;ME=null;phase='setup';bootErr='';render();return}
 });
 async function setTarget(t){confirmTarget=false;const old=CFG.target;CFG.target=t;render();try{const j=await call({a:'target',target:t});CFG=j.cfg;setSave('Sasaran ditukar')}catch(e){CFG.target=old;setSave('Gagal tukar sasaran')}render()}
