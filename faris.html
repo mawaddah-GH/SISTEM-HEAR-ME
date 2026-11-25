@@ -78,6 +78,7 @@ textarea{resize:vertical;min-height:64px}
 .via{border:0;padding:0;margin:0;display:flex;gap:10px;flex-wrap:wrap}.via legend{font-size:14px;color:var(--muted);font-weight:500;margin-bottom:6px;padding:0}
 .opt{flex:1;min-width:120px;flex-direction:row;align-items:center;gap:8px;border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:var(--bg);color:var(--ink);font-size:16px;cursor:pointer}
 .opt:has(input:checked){border-color:var(--gold);background:var(--gold-soft)}.opt input{width:20px;height:20px;accent-color:var(--navy-2)}
+.drive{display:block;text-align:center;border:1px dashed var(--line);border-radius:10px;padding:11px 14px;color:var(--info);font-weight:600;text-decoration:none;font-size:15px}
 .foot{font-size:12.5px;color:var(--muted);margin-top:28px;text-align:center}
 .vh{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 </style>
@@ -89,7 +90,7 @@ textarea{resize:vertical;min-height:64px}
 const API_URL='https://script.google.com/macros/s/AKfycbzeapEY_NbMEDpKfJym-wbqJ99ziJkj-_VuGWMmzsnRK_KVcRwpUhfzTVRDYuI5hE_n/exec';
 const FARIS_PIN='2741';   // mesti sama dengan VIDEO.pin dalam Video.gs
 const NAMA='Faris';
-// const FOLDER='https://drive.google.com/drive/folders/1RYo7NZsgaiTq2lzMBFGvYqKSojoVpSVM';   // folder video isyarat Faris
+const FOLDER='https://drive.google.com/drive/folders/1RYo7NZsgaiTq2lzMBFGvYqKSojoVpSVM';   // folder video isyarat Faris
 
 const BULAN=['Januari','Februari','Mac','April','Mei','Jun','Julai','Ogos','September','Oktober','November','Disember'];
 const BLN=['Jan','Feb','Mac','Apr','Mei','Jun','Jul','Ogo','Sep','Okt','Nov','Dis'];
@@ -128,16 +129,17 @@ function render(){
   const cur=inMonth(thisMonth()),n=cur.length,full=n>=LIMIT,left=Math.max(0,LIMIT-n);
   const paid=cur.filter(v=>v.status==='Dibayar').length;
   const list=inMonth(vm);
-  let h=`<header class="hero band"><div class="wrap"><div class="brand"><b>HEAR ME</b> · Video Isyarat</div><h1>Hai ${NAMA} 👋</h1><p class="sub">Hantar video kepada admin (WhatsApp / Telegram), kemudian isi borang ni. ${rm(RATE)} satu video, maksimum ${LIMIT} video sebulan.</p><div style="height:30px"></div></div></header>
+  let h=`<header class="hero band"><div class="wrap"><div class="brand"><b>HEAR ME</b> · Video Isyarat</div><h1>Hai ${NAMA} 👋</h1><p class="sub">Hantar video kepada admin (WhatsApp / Telegram) atau upload ke folder Drive, kemudian isi borang ni. ${rm(RATE)} satu video, maksimum ${LIMIT} video sebulan.</p><div style="height:30px"></div></div></header>
   <main class="band"><div class="wrap">
   <div class="quota ${full?'full':''}"><div class="top"><span class="big">${n}<small>/ ${LIMIT} video</small></span><span class="rm">${BULAN[new Date().getMonth()]}<b>${rm(n*RATE)}</b></span></div>
     <div class="bar"><i style="width:${Math.min(100,n/LIMIT*100)}%"></i></div>
     <div style="font-size:14px;color:${full?'var(--bad)':'var(--muted)'}">${full?'Had bulan ini dah penuh. Video baru boleh dihantar bulan depan.':`Boleh hantar ${left} video lagi bulan ini.`}${paid?` · ${paid} dah dibayar`:''}</div></div>`;
   if(note)h+=`<div class="notice ${note.cls}" style="margin-top:16px" role="status">${note.html}</div>`;
   if(!full){
-    h+=`<form class="card" id="f"><h2>Dah hantar video kepada admin?</h2>
+    h+=`<form class="card" id="f"><h2>Dah hantar video?</h2>
       <label for="f-title">Tajuk video<input id="f-title" type="text" placeholder="cth. Haiwan" value="${esc(draft.title)}" required autocomplete="off"></label>
-      <fieldset class="via"><legend>Hantar melalui</legend>${['WhatsApp','Telegram'].map(o=>`<label class="opt"><input type="radio" name="via" value="${o}" ${draft.via===o?'checked':''} required> ${o}</label>`).join('')}</fieldset>
+      <fieldset class="via"><legend>Hantar melalui</legend>${['WhatsApp','Telegram','Google Drive'].map(o=>`<label class="opt"><input type="radio" name="via" value="${o}" ${draft.via===o?'checked':''} required> ${o}</label>`).join('')}</fieldset>
+      <a class="drive" href="${FOLDER}" target="_blank" rel="noopener">📁 Buka folder Drive HEAR ME untuk upload video</a>
       <button class="btn primary" type="submit" ${busy?'disabled':''}>${busy?'Menghantar…':'Hantar'}</button></form>`;
   }
   h+=`<div class="sechead"><h2>Video saya</h2><div class="monthnav"><button class="btn sm" data-month="-1" aria-label="Bulan sebelum">‹</button><b>${monthLabel(vm)}</b><button class="btn sm" data-month="1" aria-label="Bulan seterusnya" ${vm>=thisMonth()?'disabled':''}>›</button></div></div>`;
@@ -153,7 +155,7 @@ function keepDraft(){const f=$('#f');if(!f)return;draft={title:$('#f-title').val
 document.addEventListener('submit',async e=>{
   if(e.target.id!=='f')return;e.preventDefault();if(busy)return;keepDraft();
   const title=draft.title.trim(),via=draft.via;
-  if(!title||!via){note={cls:'bad',html:'Sila tulis tajuk video dan pilih WhatsApp atau Telegram.'};render();return}
+  if(!title||!via){note={cls:'bad',html:'Sila tulis tajuk video dan pilih cara hantar.'};render();return}
   const item={id:uid(),date:todayISO(),title,link:'',note:'Dihantar melalui '+via};
   busy=true;note=null;render();
   try{const j=await call({a:'save',kind:'videos',item});V.push(j.item||{...item,status:'Belum dibayar'});
