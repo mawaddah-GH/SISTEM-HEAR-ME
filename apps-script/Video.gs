@@ -64,7 +64,7 @@ function semakVideo_(me, item) {
     item.status = 'Belum dibayar';
     item.paidOn = '';
     if (!item.date) item.date = Utilities.formatDate(new Date(), 'Asia/Kuala_Lumpur', 'yyyy-MM-dd');
-    if (!/^https?:\/\//i.test(String(item.link || '').trim())) throw err('Sila tampal link video (bermula dengan https://).');
+    if (!String(item.title || '').trim()) throw err('Sila tulis tajuk video.');
     const bulan = String(item.date).slice(0, 7);
     const ada = readKind('videos').filter(v => v.id !== item.id && String(v.date || '').slice(0, 7) === bulan).length;
     if (ada >= VIDEO.limit) throw err('Had ' + VIDEO.limit + ' video untuk bulan ini dah penuh. Video baru boleh dihantar bulan depan.', 'limit');

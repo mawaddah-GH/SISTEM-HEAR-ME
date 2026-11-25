@@ -75,6 +75,9 @@ textarea{resize:vertical;min-height:64px}
 .side{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
 .empty{text-align:center;padding:28px 16px;color:var(--muted);background:var(--paper);border:1px dashed var(--line);border-radius:14px;font-size:15px}
 .steps{margin:0;padding-left:20px;font-size:14.5px;color:var(--muted)}.steps li{margin-bottom:4px}.steps a{color:var(--info);font-weight:600}
+.via{border:0;padding:0;margin:0;display:flex;gap:10px;flex-wrap:wrap}.via legend{font-size:14px;color:var(--muted);font-weight:500;margin-bottom:6px;padding:0}
+.opt{flex:1;min-width:120px;flex-direction:row;align-items:center;gap:8px;border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:var(--bg);color:var(--ink);font-size:16px;cursor:pointer}
+.opt:has(input:checked){border-color:var(--gold);background:var(--gold-soft)}.opt input{width:20px;height:20px;accent-color:var(--navy-2)}
 .foot{font-size:12.5px;color:var(--muted);margin-top:28px;text-align:center}
 .vh{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 </style>
@@ -86,7 +89,7 @@ textarea{resize:vertical;min-height:64px}
 const API_URL='https://script.google.com/macros/s/AKfycbzeapEY_NbMEDpKfJym-wbqJ99ziJkj-_VuGWMmzsnRK_KVcRwpUhfzTVRDYuI5hE_n/exec';
 const FARIS_PIN='2741';   // mesti sama dengan VIDEO.pin dalam Video.gs
 const NAMA='Faris';
-const FOLDER='https://drive.google.com/drive/folders/1RYo7NZsgaiTq2lzMBFGvYqKSojoVpSVM';   // folder video isyarat Faris
+// const FOLDER='https://drive.google.com/drive/folders/1RYo7NZsgaiTq2lzMBFGvYqKSojoVpSVM';   // folder video isyarat Faris
 
 const BULAN=['Januari','Februari','Mac','April','Mei','Jun','Julai','Ogos','September','Oktober','November','Disember'];
 const BLN=['Jan','Feb','Mac','Apr','Mei','Jun','Jul','Ogo','Sep','Okt','Nov','Dis'];
@@ -100,7 +103,7 @@ const shiftMonth=(m,d)=>{const [y,mm]=m.split('-').map(Number);const x=new Date(
 const rm=n=>'RM '+Number(n||0).toLocaleString('ms-MY',{minimumFractionDigits:2,maximumFractionDigits:2});
 const uid=()=>'v'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
 
-let V=[],LIMIT=10,RATE=10,vm=thisMonth(),state='loading',note=null,busy=false,askDel=null,draft={date:todayISO(),title:'',link:'',note:''},loadErr='';
+let V=[],LIMIT=10,RATE=10,vm=thisMonth(),state='loading',note=null,busy=false,askDel=null,draft={title:'',via:''},loadErr='';
 
 async function load(){
   try{
@@ -125,42 +128,36 @@ function render(){
   const cur=inMonth(thisMonth()),n=cur.length,full=n>=LIMIT,left=Math.max(0,LIMIT-n);
   const paid=cur.filter(v=>v.status==='Dibayar').length;
   const list=inMonth(vm);
-  let h=`<header class="hero band"><div class="wrap"><div class="brand"><b>HEAR ME</b> · Video Isyarat</div><h1>Hai ${NAMA} 👋</h1><p class="sub">Hantar link setiap video isyarat yang siap. Pastikan link betul sebelum hantar. ${rm(RATE)} satu video, maksimum ${LIMIT} video sebulan.</p><div style="height:30px"></div></div></header>
+  let h=`<header class="hero band"><div class="wrap"><div class="brand"><b>HEAR ME</b> · Video Isyarat</div><h1>Hai ${NAMA} 👋</h1><p class="sub">Hantar video kepada admin (WhatsApp / Telegram), kemudian isi borang ni. ${rm(RATE)} satu video, maksimum ${LIMIT} video sebulan.</p><div style="height:30px"></div></div></header>
   <main class="band"><div class="wrap">
   <div class="quota ${full?'full':''}"><div class="top"><span class="big">${n}<small>/ ${LIMIT} video</small></span><span class="rm">${BULAN[new Date().getMonth()]}<b>${rm(n*RATE)}</b></span></div>
     <div class="bar"><i style="width:${Math.min(100,n/LIMIT*100)}%"></i></div>
     <div style="font-size:14px;color:${full?'var(--bad)':'var(--muted)'}">${full?'Had bulan ini dah penuh. Video baru boleh dihantar bulan depan.':`Boleh hantar ${left} video lagi bulan ini.`}${paid?` · ${paid} dah dibayar`:''}</div></div>`;
   if(note)h+=`<div class="notice ${note.cls}" style="margin-top:16px" role="status">${note.html}</div>`;
   if(!full){
-    h+=`<form class="card" id="f"><h2>Video baru</h2>
-      <ol class="steps"><li>Upload video ke <a href="${FOLDER}" target="_blank" rel="noopener">folder Drive HEAR ME ↗</a></li><li>Dalam Drive, tekan ⋮ pada video → <b>Share</b> → <b>Copy link</b></li><li>Tampal link video tu di bawah</li></ol>
-      <label for="f-link">Link video (Google Drive)<input id="f-link" type="url" inputmode="url" placeholder="https://drive.google.com/file/d/…" value="${esc(draft.link)}" required></label>
-      <label for="f-title">Tajuk / perkataan isyarat<input id="f-title" type="text" placeholder="cth. Salam perkenalan" value="${esc(draft.title)}" required></label>
-      <label for="f-date">Tarikh siap<input id="f-date" type="date" value="${esc(draft.date)}" max="${todayISO()}" required></label>
-      <label for="f-note">Catatan (jika ada)<textarea id="f-note">${esc(draft.note)}</textarea></label>
-      <button class="btn primary" type="submit" ${busy?'disabled':''}>${busy?'Menghantar…':'Hantar video'}</button></form>`;
+    h+=`<form class="card" id="f"><h2>Dah hantar video kepada admin?</h2>
+      <label for="f-title">Tajuk video<input id="f-title" type="text" placeholder="cth. Haiwan" value="${esc(draft.title)}" required autocomplete="off"></label>
+      <fieldset class="via"><legend>Hantar melalui</legend>${['WhatsApp','Telegram'].map(o=>`<label class="opt"><input type="radio" name="via" value="${o}" ${draft.via===o?'checked':''} required> ${o}</label>`).join('')}</fieldset>
+      <button class="btn primary" type="submit" ${busy?'disabled':''}>${busy?'Menghantar…':'Hantar'}</button></form>`;
   }
   h+=`<div class="sechead"><h2>Video saya</h2><div class="monthnav"><button class="btn sm" data-month="-1" aria-label="Bulan sebelum">‹</button><b>${monthLabel(vm)}</b><button class="btn sm" data-month="1" aria-label="Bulan seterusnya" ${vm>=thisMonth()?'disabled':''}>›</button></div></div>`;
   h+=list.length?`<div class="list">${list.map((v,i)=>{const d=new Date(v.date+'T00:00');
-    return `<div class="v"><span class="no">${i+1}</span><span><span class="t">${esc(v.title||'(Tanpa tajuk)')}</span><br><span class="s">${isNaN(d)?'':d.getDate()+' '+BLN[d.getMonth()]+' · '}${v.link?`<a href="${esc(v.link)}" target="_blank" rel="noopener">Buka video ↗</a>`:''}</span></span>
+    return `<div class="v"><span class="no">${i+1}</span><span><span class="t">${esc(v.title||'(Tanpa tajuk)')}</span><br><span class="s">${isNaN(d)?'':d.getDate()+' '+BLN[d.getMonth()]+' · '}${v.link?`<a href="${esc(v.link)}" target="_blank" rel="noopener">Buka video ↗</a>`:esc(String(v.note||'').replace(/^Dihantar melalui /,'').replace(/ \(.*\)$/,''))}</span></span>
       <span class="side">${v.status==='Dibayar'?'<span class="chip ok">✓ Dibayar</span>':'<span class="chip warn">Belum dibayar</span>'}</span></div>`}).join('')}</div>`
     :`<div class="empty">Tiada video untuk ${monthLabel(vm)}.</div>`;
   h+=`<p class="foot">Tersalah hantar? Maklumkan admin HEAR ME untuk pembetulan. Video yang dihantar adalah hak milik HEAR ME.</p></div></main>`;
   app.innerHTML=h;
 }
-function keepDraft(){const f=$('#f');if(!f)return;draft={date:$('#f-date').value,title:$('#f-title').value,link:$('#f-link').value,note:$('#f-note').value}}
+function keepDraft(){const f=$('#f');if(!f)return;draft={title:$('#f-title').value,via:(document.querySelector('input[name=via]:checked')||{}).value||''}}
 
 document.addEventListener('submit',async e=>{
   if(e.target.id!=='f')return;e.preventDefault();if(busy)return;keepDraft();
-  const link=draft.link.trim(),title=draft.title.trim();
-  if(/\/drive\/folders\//.test(link)){note={cls:'bad',html:'Ini link <b>folder</b>. Sila tampal link <b>video</b> tu sendiri (tekan ⋮ pada video → Share → Copy link).'};render();$('#f-link')?.focus();return}
-  if(!/^https?:\/\//i.test(link)){note={cls:'bad',html:'Sila tampal link video yang betul (bermula dengan https://).'};render();$('#f-link')?.focus();return}
-  const dup=V.find(v=>String(v.link).trim()===link);
-  if(dup&&!confirm('Link ini dah pernah dihantar ("'+(dup.title||'')+'"). Hantar juga?'))return;
-  const item={id:uid(),date:draft.date||todayISO(),title,link,note:draft.note.trim()};
+  const title=draft.title.trim(),via=draft.via;
+  if(!title||!via){note={cls:'bad',html:'Sila tulis tajuk video dan pilih WhatsApp atau Telegram.'};render();return}
+  const item={id:uid(),date:todayISO(),title,link:'',note:'Dihantar melalui '+via};
   busy=true;note=null;render();
   try{const j=await call({a:'save',kind:'videos',item});V.push(j.item||{...item,status:'Belum dibayar'});
-    draft={date:todayISO(),title:'',link:'',note:''};vm=thisMonth();note={cls:'ok',html:`✓ Video <b>${esc(title)}</b> dah dihantar. Terima kasih!`};}
+    draft={title:'',via:''};vm=thisMonth();note={cls:'ok',html:`✓ <b>${esc(title)}</b> dah direkod. Terima kasih!`};}
   catch(err){note={cls:'bad',html:esc(err.message&&err.message!=='Failed to fetch'?err.message:'Tak pasti berjaya (masalah internet). Muat semula halaman dan semak senarai sebelum hantar lagi.')}}
   busy=false;render();scrollTo({top:0,behavior:'smooth'});
 });
