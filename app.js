@@ -15,6 +15,7 @@ const RTYPE=['Sumbangan','Tajaan','Yuran ahli','Geran','Lain-lain'];
 const PTYPE=['Staf','Vendor','Tuntutan','Lain-lain'];
 const TARGET_JAM=160;
 const VSTAT=['Belum dibayar','Dibayar'];   // Video isyarat Faris (Video.gs)
+const VIDEO_LIMIT_FROM='2026-12';   // Nov 2026 diluluskan 13 video; had 10 mula Disember
 const vLimit=()=>+CFG.videoLimit||10, vRate=()=>+CFG.videoRate||10;
 const TNAME={ujian:'Master Taqwim (SALINAN UJIAN)',sebenar:'Master Taqwim (SEBENAR)'};
 /* Tanpa PIN: pengguna hanya tekan butang peranan. */
@@ -345,10 +346,10 @@ function vPTuntut(){
 /* ---------- Video isyarat Faris ---------- */
 const vMonth=m=>(S.videos||[]).filter(v=>(v.date||'').startsWith(m)).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
 function vquota(m){
-  const n=vMonth(m).length,L=vLimit(),paid=vMonth(m).filter(v=>v.status==='Dibayar').length,over=n>L;
+  const n=vMonth(m).length,L=vLimit(),paid=vMonth(m).filter(v=>v.status==='Dibayar').length,enf=m>=VIDEO_LIMIT_FROM,over=enf&&n>L;
   return `<div class="hcard"><div class="top"><span class="nm">Faris · ${monthLabel(m)}</span><span class="hr">${n}<small>/ ${L} video</small></span></div>
   <div class="bar"><i style="width:${Math.min(100,n/L*100)}%;${n>=L?'background:var(--bad)':''}"></i></div>
-  <div class="meta">${rm(n*vRate())} · ${paid} dibayar · ${n-paid} belum dibayar${over?` · <span class="badtxt">melebihi had ${n-L} video</span>`:n>=L?' · <b>had penuh</b>':''}</div></div>`;
+  <div class="meta">${rm(n*vRate())} · ${paid} dibayar · ${n-paid} belum dibayar${over?` · <span class="badtxt">melebihi had ${n-L} video</span>`:!enf?' · had 10 mula Disember':n>=L?' · <b>had penuh</b>':''}</div></div>`;
 }
 function vVideo(){
   if(!can('videos'))return `<div class="notice">Tab Video Faris belum dipasang. Tambah fail <b>Video.gs</b> dalam Apps Script Sistem HEAR ME, Run <b>setupVideo</b>, kemudian Deploy → New version.</div>`;
@@ -358,7 +359,7 @@ function vVideo(){
   h+=`<div class="toolbar"><span class="s">Faris hantar sendiri melalui borang. ${rm(vRate())} satu video.</span><span class="spacer"></span>${unpaid.length?`<button class="btn sm" data-vpayall="1" ${busy.vpay?'disabled':''}>Tanda ${unpaid.length} dibayar</button>`:''}<button class="btn primary" data-add="videos">+ Video</button></div>`;
   return h+(list.length?list.map((v,i)=>{const op=openId===v.id,p=v.status==='Dibayar';
     return `<article class="item ${op?'open':''}" data-id="${v.id}"><button class="row" data-toggle="${v.id}" aria-expanded="${op}">${dateBlock(v.date)}
-      <div class="grow"><div class="t">${i+1}. ${esc(v.title||'(Tanpa tajuk)')}</div>${v.note?`<div class="s">${esc(v.note)}</div>`:''}<div class="chips"><span class="chip ${p?'ok':'warn'}">${p?'✓ Dibayar'+(v.paidOn?' '+pd(v.paidOn).getDate()+' '+BLN[pd(v.paidOn).getMonth()]:''):'Belum dibayar'}</span>${i>=vLimit()?'<span class="chip bad">Lebih had</span>':''}</div></div><div class="right"><b>${rm(vRate())}</b></div></button>
+      <div class="grow"><div class="t">${i+1}. ${esc(v.title||'(Tanpa tajuk)')}</div>${v.note?`<div class="s">${esc(v.note)}</div>`:''}<div class="chips"><span class="chip ${p?'ok':'warn'}">${p?'✓ Dibayar'+(v.paidOn?' '+pd(v.paidOn).getDate()+' '+BLN[pd(v.paidOn).getMonth()]:''):'Belum dibayar'}</span>${i>=vLimit()&&vm>=VIDEO_LIMIT_FROM?'<span class="chip bad">Lebih had</span>':''}</div></div><div class="right"><b>${rm(vRate())}</b></div></button>
       ${op?form('videos',v,{extra:v.link?link(v.link,'Buka video')+' ':''}):`<div class="takwim"><span class="msg">${v.link?link(v.link,'Buka video ↗'):'<span class="badtxt">Tiada link</span>'}</span>${p?`<button class="linkbtn" data-vunpay="${v.id}">Batal dibayar</button>`:`<button class="btn sm primary" data-vpay="${v.id}" ${busy[v.id]?'disabled':''}>Tanda dibayar</button>`}</div>`}</article>`}).join(''):empty(`Tiada video untuk ${monthLabel(vm)}.`));
 }
 async function videoPaid(ids,paid,busyKey){
