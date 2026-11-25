@@ -123,7 +123,7 @@ function render(){
   const cur=inMonth(thisMonth()),n=cur.length,full=n>=LIMIT,left=Math.max(0,LIMIT-n);
   const paid=cur.filter(v=>v.status==='Dibayar').length;
   const list=inMonth(vm);
-  let h=`<header class="hero band"><div class="wrap"><div class="brand"><b>HEAR ME</b> · Video Isyarat</div><h1>Hai ${NAMA} 👋</h1><p class="sub">Hantar link setiap video isyarat yang siap. ${rm(RATE)} satu video, maksimum ${LIMIT} video sebulan.</p><div style="height:30px"></div></div></header>
+  let h=`<header class="hero band"><div class="wrap"><div class="brand"><b>HEAR ME</b> · Video Isyarat</div><h1>Hai ${NAMA} 👋</h1><p class="sub">Hantar link setiap video isyarat yang siap. Pastikan link betul sebelum hantar. ${rm(RATE)} satu video, maksimum ${LIMIT} video sebulan.</p><div style="height:30px"></div></div></header>
   <main class="band"><div class="wrap">
   <div class="quota ${full?'full':''}"><div class="top"><span class="big">${n}<small>/ ${LIMIT} video</small></span><span class="rm">${BULAN[new Date().getMonth()]}<b>${rm(n*RATE)}</b></span></div>
     <div class="bar"><i style="width:${Math.min(100,n/LIMIT*100)}%"></i></div>
@@ -140,10 +140,9 @@ function render(){
   h+=`<div class="sechead"><h2>Video saya</h2><div class="monthnav"><button class="btn sm" data-month="-1" aria-label="Bulan sebelum">‹</button><b>${monthLabel(vm)}</b><button class="btn sm" data-month="1" aria-label="Bulan seterusnya" ${vm>=thisMonth()?'disabled':''}>›</button></div></div>`;
   h+=list.length?`<div class="list">${list.map((v,i)=>{const d=new Date(v.date+'T00:00');
     return `<div class="v"><span class="no">${i+1}</span><span><span class="t">${esc(v.title||'(Tanpa tajuk)')}</span><br><span class="s">${isNaN(d)?'':d.getDate()+' '+BLN[d.getMonth()]+' · '}${v.link?`<a href="${esc(v.link)}" target="_blank" rel="noopener">Buka video ↗</a>`:''}</span></span>
-      <span class="side">${v.status==='Dibayar'?'<span class="chip ok">✓ Dibayar</span>':'<span class="chip warn">Belum dibayar</span>'}
-      ${v.status!=='Dibayar'?(askDel===v.id?`<button class="btn sm danger" data-del="${v.id}">Ya, padam</button>`:`<button class="btn sm" data-askdel="${v.id}">Padam</button>`):''}</span></div>`}).join('')}</div>`
+      <span class="side">${v.status==='Dibayar'?'<span class="chip ok">✓ Dibayar</span>':'<span class="chip warn">Belum dibayar</span>'}</span></div>`}).join('')}</div>`
     :`<div class="empty">Tiada video untuk ${monthLabel(vm)}.</div>`;
-  h+=`<p class="foot">Hantar link yang salah? Tekan Padam dan hantar semula. Video yang dah dibayar tak boleh diubah.</p></div></main>`;
+  h+=`<p class="foot">Tersalah hantar? Maklumkan admin HEAR ME untuk pembetulan. Video yang dihantar adalah hak milik HEAR ME.</p></div></main>`;
   app.innerHTML=h;
 }
 function keepDraft(){const f=$('#f');if(!f)return;draft={date:$('#f-date').value,title:$('#f-title').value,link:$('#f-link').value,note:$('#f-note').value}}
@@ -165,9 +164,6 @@ document.addEventListener('click',async e=>{
   const b=e.target.closest('button');if(!b)return;const d=b.dataset;
   if(d.reload){state='loading';render();load();return}
   if(d.month){keepDraft();vm=shiftMonth(vm,+d.month);askDel=null;render();return}
-  if(d.askdel){keepDraft();askDel=d.askdel;render();return}
-  if(d.del){keepDraft();const id=d.del,old=V;V=V.filter(v=>v.id!==id);askDel=null;note=null;render();
-    try{await call({a:'del',kind:'videos',id});note={cls:'ok',html:'Video dipadam.'}}catch(err){V=old;note={cls:'bad',html:esc(err.message||'Gagal padam.')}}render();return}
 });
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&state==='ready'&&!busy){keepDraft();load()}});
 load();

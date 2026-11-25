@@ -13,7 +13,8 @@
  *  - PIN untuk Faris (digunakan oleh faris.html sahaja)
  *  - Tab "Video Faris" dalam Sheet
  *  - Had 10 video sebulan, kadar RM10 satu video
- *  - Faris hanya boleh tambah / ubah / padam video yang BELUM dibayar.
+ *  - Faris hanya boleh TAMBAH video baru. Dia tak boleh ubah atau padam
+ *    video yang dah dihantar (video hak milik HEAR ME). Pembetulan dibuat oleh Admin.
  *    Status bayaran hanya boleh diubah oleh Admin & Finance.
  */
 const VIDEO = {
@@ -49,10 +50,7 @@ saveItem = function (me, kind, item) {
 };
 
 delItem = function (me, kind, id) {
-  if (kind === 'videos' && me.role === 'faris') {
-    const r = findRow(sheetOf('videos'), KIND.videos, id);
-    if (r && readRow('videos', r).status === 'Dibayar') throw err('Video ini dah dibayar dan tak boleh dipadam.', 'forbidden');
-  }
+  if (kind === 'videos' && me.role === 'faris') throw err('Video yang dah dihantar tak boleh dipadam. Hubungi admin jika ada kesilapan.', 'forbidden');
   return _delItemAsal(me, kind, id);
 };
 
@@ -62,9 +60,9 @@ function semakVideo_(me, item) {
   const lama = r ? readRow('videos', r) : null;
 
   if (me.role === 'faris') {
-    if (lama && lama.status === 'Dibayar') throw err('Video ini dah dibayar dan tak boleh diubah.', 'forbidden');
-    item.status = lama ? (lama.status || 'Belum dibayar') : 'Belum dibayar';
-    item.paidOn = lama ? (lama.paidOn || '') : '';
+    if (lama) throw err('Video yang dah dihantar tak boleh diubah. Hubungi admin jika ada kesilapan.', 'forbidden');
+    item.status = 'Belum dibayar';
+    item.paidOn = '';
     if (!item.date) item.date = Utilities.formatDate(new Date(), 'Asia/Kuala_Lumpur', 'yyyy-MM-dd');
     if (!/^https?:\/\//i.test(String(item.link || '').trim())) throw err('Sila tampal link video (bermula dengan https://).');
     const bulan = String(item.date).slice(0, 7);
