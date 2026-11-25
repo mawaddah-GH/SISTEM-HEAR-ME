@@ -74,6 +74,7 @@ textarea{resize:vertical;min-height:64px}
 .chip.warn{background:var(--warn-bg);color:var(--warn)}
 .side{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
 .empty{text-align:center;padding:28px 16px;color:var(--muted);background:var(--paper);border:1px dashed var(--line);border-radius:14px;font-size:15px}
+.steps{margin:0;padding-left:20px;font-size:14.5px;color:var(--muted)}.steps li{margin-bottom:4px}.steps a{color:var(--info);font-weight:600}
 .foot{font-size:12.5px;color:var(--muted);margin-top:28px;text-align:center}
 .vh{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 </style>
@@ -81,10 +82,11 @@ textarea{resize:vertical;min-height:64px}
 <body>
 <div id="app"><header class="hero band"><div class="wrap"><div class="brand"><b>HEAR ME</b> · Video Isyarat</div><h1>Hantar Video</h1><p class="sub">Memuatkan…</p></div></header></div>
 <script>
-/* Borang video isyarat Faris. Data masuk ke tab "Video Faris" dalam Google Sheet Sistem HEAR ME. */
+/* v20261125b — Borang video isyarat Faris. Data masuk ke tab "Video Faris" dalam Google Sheet Sistem HEAR ME. */
 const API_URL='https://script.google.com/macros/s/AKfycbzeapEY_NbMEDpKfJym-wbqJ99ziJkj-_VuGWMmzsnRK_KVcRwpUhfzTVRDYuI5hE_n/exec';
 const FARIS_PIN='2741';   // mesti sama dengan VIDEO.pin dalam Video.gs
 const NAMA='Faris';
+const FOLDER='https://drive.google.com/drive/folders/1RYo7NZsgaiTq2lzMBFGvYqKSojoVpSVM';   // folder video isyarat Faris
 
 const BULAN=['Januari','Februari','Mac','April','Mei','Jun','Julai','Ogos','September','Oktober','November','Disember'];
 const BLN=['Jan','Feb','Mac','Apr','Mei','Jun','Jul','Ogo','Sep','Okt','Nov','Dis'];
@@ -131,7 +133,8 @@ function render(){
   if(note)h+=`<div class="notice ${note.cls}" style="margin-top:16px" role="status">${note.html}</div>`;
   if(!full){
     h+=`<form class="card" id="f"><h2>Video baru</h2>
-      <label for="f-link">Link video (Google Drive)<input id="f-link" type="url" inputmode="url" placeholder="https://drive.google.com/…" value="${esc(draft.link)}" required></label>
+      <ol class="steps"><li>Upload video ke <a href="${FOLDER}" target="_blank" rel="noopener">folder Drive HEAR ME ↗</a></li><li>Dalam Drive, tekan ⋮ pada video → <b>Share</b> → <b>Copy link</b></li><li>Tampal link video tu di bawah</li></ol>
+      <label for="f-link">Link video (Google Drive)<input id="f-link" type="url" inputmode="url" placeholder="https://drive.google.com/file/d/…" value="${esc(draft.link)}" required></label>
       <label for="f-title">Tajuk / perkataan isyarat<input id="f-title" type="text" placeholder="cth. Salam perkenalan" value="${esc(draft.title)}" required></label>
       <label for="f-date">Tarikh siap<input id="f-date" type="date" value="${esc(draft.date)}" max="${todayISO()}" required></label>
       <label for="f-note">Catatan (jika ada)<textarea id="f-note">${esc(draft.note)}</textarea></label>
@@ -150,6 +153,7 @@ function keepDraft(){const f=$('#f');if(!f)return;draft={date:$('#f-date').value
 document.addEventListener('submit',async e=>{
   if(e.target.id!=='f')return;e.preventDefault();if(busy)return;keepDraft();
   const link=draft.link.trim(),title=draft.title.trim();
+  if(/\/drive\/folders\//.test(link)){note={cls:'bad',html:'Ini link <b>folder</b>. Sila tampal link <b>video</b> tu sendiri (tekan ⋮ pada video → Share → Copy link).'};render();$('#f-link')?.focus();return}
   if(!/^https?:\/\//i.test(link)){note={cls:'bad',html:'Sila tampal link video yang betul (bermula dengan https://).'};render();$('#f-link')?.focus();return}
   const dup=V.find(v=>String(v.link).trim()===link);
   if(dup&&!confirm('Link ini dah pernah dihantar ("'+(dup.title||'')+'"). Hantar juga?'))return;
