@@ -14,12 +14,14 @@ const TSTAT=['Dirancang','Belum dituntut','Disahkan Presiden','Dibayar'];
 const RTYPE=['Sumbangan','Tajaan','Yuran ahli','Geran','Lain-lain'];
 const PTYPE=['Staf','Vendor','Tuntutan','Lain-lain'];
 const TARGET_JAM=160;
+const VSTAT=['Belum dibayar','Dibayar'];   // Video isyarat Faris (Video.gs)
+const vLimit=()=>+CFG.videoLimit||10, vRate=()=>+CFG.videoRate||10;
 const TNAME={ujian:'Master Taqwim (SALINAN UJIAN)',sebenar:'Master Taqwim (SEBENAR)'};
 /* Tanpa PIN: pengguna hanya tekan butang peranan. */
 const ROLE_PINS={presiden:'5364',admin:'5145',finance:'0337'};
 const ROLE_NAME={presiden:'Presiden',admin:'Admin & SU',finance:'Finance'};
 const TABS={
-  admin:[['ringkas','Ringkasan'],['tugas','Tugasan'],['presiden','Presiden'],['aktiviti','Aktiviti'],['staf','Anas & Uzma']],
+  admin:[['ringkas','Ringkasan'],['tugas','Tugasan'],['presiden','Presiden'],['aktiviti','Aktiviti'],['staf','Anas & Uzma'],['video','Video Faris']],
   presiden:[['hari','Hari ini'],['jadual','Jadual'],['keputusan','Keputusan'],['ptuntut','Tuntutan']],
   finance:[['fringkas','Ringkasan'],['ftuntut','Tuntutan'],['terimaan','Terimaan'],['bayaran','Bayaran']]
 };
@@ -113,14 +115,14 @@ function render(){
   if(phase!=='ready'){$('#app').innerHTML=vSetup();return}
   const tabs=TABS[ME.role],badge=k=>({tugas:(S.tasks||[]).filter(t=>t.status!=='Selesai').length,aktiviti:(S.acts||[]).filter(a=>!done(a.takwim)).length||'',
     keputusan:(S.decisions||[]).filter(d=>d.status!=='Dijawab').length||'',ptuntut:claimReady().length||'',
-    ftuntut:(S.trips||[]).filter(t=>t.status==='Disahkan Presiden').length||'',bayaran:(S.payments||[]).filter(p=>p.status!=='Dibayar').length||''}[k]??'');
+    ftuntut:(S.trips||[]).filter(t=>t.status==='Disahkan Presiden').length||'',bayaran:(S.payments||[]).filter(p=>p.status!=='Dibayar').length||'',video:(S.videos||[]).filter(v=>v.status!=='Dibayar').length||''}[k]??'');
   const hello=ME.role==='presiden'?`${greet()}, Presiden`:greet();
   let h=`<header class="hero band"><div class="wrap">
     <div class="brand"><span><b>HEAR ME</b> · ${esc(ROLE_NAME[ME.role])}</span><span><span class="save" id="save">${esc(saveMsg)}</span> <button class="iconbtn" data-reload="1" aria-label="Muat semula">↻</button></span></div>
     <h1>${esc(hello)}</h1><p class="sub">${longDate(todayISO())}</p>
     ${tabs.length>1?`<nav class="tabs" aria-label="Bahagian">${tabs.map(([k,l])=>{const n=badge(k);return `<button data-tab="${k}" ${tab===k?'aria-current="page"':''}>${l}${n!==''&&n!==0?`<span class="n">${n}</span>`:''}</button>`}).join('')}</nav>`:'<div style="height:14px"></div>'}
   </div></header><main class="band"><div class="wrap">`;
-  const V={ringkas:vRingkas,tugas:vTugas,presiden:vPAdmin,aktiviti:vAktiviti,staf:vStaf,hari:vHari,jadual:vJadual,keputusan:vKeputusan,ptuntut:vPTuntut,
+  const V={ringkas:vRingkas,tugas:vTugas,presiden:vPAdmin,aktiviti:vAktiviti,staf:vStaf,video:vVideo,hari:vHari,jadual:vJadual,keputusan:vKeputusan,ptuntut:vPTuntut,
     fringkas:vFRingkas,ftuntut:vFTuntut,terimaan:vTerimaan,bayaran:vBayaran}[tab];
   h+=V?V():'';
   h+=`<p class="foot">Data disimpan dalam Google Sheet <b>Sistem HEAR ME</b>. <button class="linkbtn" data-logout="1">Log keluar dari peranti ini</button></p></div></main>`;
@@ -150,6 +152,7 @@ const FORM={
     ['status','Status tuntutan','select',TSTAT],['ref','No. rujukan','text'],['receipt','Resit','upload','w6'],['note','Catatan','textarea','w6']],
   decisions:[['title','Soalan untuk Presiden','text','w6'],['detail','Butiran','textarea','w6'],['options','Pilihan jawapan (pisah dengan |)','text','w6'],['due','Perlu jawapan sebelum','date'],['link','Link dokumen','url','w3'],['status','Status','select',['Menunggu','Dijawab']]],
   receipts:[['date','Tarikh','date'],['amount','Jumlah RM','num'],['type','Jenis','select',RTYPE],['from','Daripada','text','w3'],['program','Program','text','w3'],['no','No. resit rasmi','text'],['note','Catatan','textarea','w6']],
+  videos:[['title','Tajuk / perkataan isyarat','text','w6'],['link','Link video','url','w6'],['date','Tarikh siap','date'],['status','Status bayaran','select',VSTAT],['paidOn','Tarikh dibayar','date'],['note','Catatan','textarea','w6']],
   payments:[['what','Perkara','text','w6'],['to','Kepada','text','w3'],['type','Jenis','select',PTYPE],['amount','Jumlah RM','num'],['date','Tarikh','date'],['dueBy','Perlu bayar sebelum','date'],['status','Status','select',['Belum dibayar','Dibayar']],['program','Program','text','w3'],['receipt','Resit / invois','upload','w6'],['note','Catatan','textarea','w6']]
 };
 function form(kind,x,opts={}){
@@ -172,7 +175,7 @@ function newItem(kind){
   const d={tasks:{t:'',pic:'Admin',due:'',status:'Belum Mula',note:''},staff:{date:todayISO(),who:flt.staff==='Uzma'?'Uzma':'Anas',t:'',prog:0,link:'',in:'',out:''},
     acts:{date:'',name:'',loc:'',pic:'',sum:'',img:'',takwim:''},trips:{date:todayISO(),time:'',depart:'',purpose:'',from:'Casa',to:'',with:'',car:'Yaris',km:'',fuel:'',toll:'',park:'',sara:'',inap:'',status:'Dirancang',ref:'',points:'',link:'',receipt:'',note:'',takwim:''},
     decisions:{title:'',detail:'',options:'Setuju | Tidak setuju',due:'',link:'',status:'Menunggu',answer:'',pnote:''},
-    receipts:{date:todayISO(),from:'',type:'Sumbangan',amount:'',program:'',no:'',note:''},payments:{date:todayISO(),to:'',type:'Vendor',what:'',amount:'',dueBy:'',status:'Belum dibayar',program:'',receipt:'',note:''}}[kind];
+    receipts:{date:todayISO(),from:'',type:'Sumbangan',amount:'',program:'',no:'',note:''},videos:{date:todayISO(),title:'',link:'',note:'',status:'Belum dibayar',paidOn:''},payments:{date:todayISO(),to:'',type:'Vendor',what:'',amount:'',dueBy:'',status:'Belum dibayar',program:'',receipt:'',note:''}}[kind];
   const x={id:uid(kind[0]),...d};S[kind].unshift(x);openId=x.id;return x;
 }
 
@@ -339,6 +342,41 @@ function vPTuntut(){
   return h+`<p class="s" style="margin-top:12px">Selepas anda sahkan, tuntutan terus muncul di paparan Finance untuk dibayar.</p>`;
 }
 
+/* ---------- Video isyarat Faris ---------- */
+const vMonth=m=>(S.videos||[]).filter(v=>(v.date||'').startsWith(m)).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+function vquota(m){
+  const n=vMonth(m).length,L=vLimit(),paid=vMonth(m).filter(v=>v.status==='Dibayar').length,over=n>L;
+  return `<div class="hcard"><div class="top"><span class="nm">Faris · ${monthLabel(m)}</span><span class="hr">${n}<small>/ ${L} video</small></span></div>
+  <div class="bar"><i style="width:${Math.min(100,n/L*100)}%;${n>=L?'background:var(--bad)':''}"></i></div>
+  <div class="meta">${rm(n*vRate())} · ${paid} dibayar · ${n-paid} belum dibayar${over?` · <span class="badtxt">melebihi had ${n-L} video</span>`:n>=L?' · <b>had penuh</b>':''}</div></div>`;
+}
+function vVideo(){
+  if(!can('videos'))return `<div class="notice">Tab Video Faris belum dipasang. Tambah fail <b>Video.gs</b> dalam Apps Script Sistem HEAR ME, Run <b>setupVideo</b>, kemudian Deploy → New version.</div>`;
+  const list=vMonth(vm),unpaid=list.filter(v=>v.status!=='Dibayar');
+  let h=`<div class="toolbar">${monthNav()}<span class="spacer"></span>${link('faris.html','Borang Faris ↗')}</div>`;
+  h+=sec('','',`<div class="hours one">${vquota(vm)}</div>`);
+  h+=`<div class="toolbar"><span class="s">Faris hantar sendiri melalui borang. ${rm(vRate())} satu video.</span><span class="spacer"></span>${unpaid.length?`<button class="btn sm" data-vpayall="1" ${busy.vpay?'disabled':''}>Tanda ${unpaid.length} dibayar</button>`:''}<button class="btn primary" data-add="videos">+ Video</button></div>`;
+  return h+(list.length?list.map((v,i)=>{const op=openId===v.id,p=v.status==='Dibayar';
+    return `<article class="item ${op?'open':''}" data-id="${v.id}"><button class="row" data-toggle="${v.id}" aria-expanded="${op}">${dateBlock(v.date)}
+      <div class="grow"><div class="t">${i+1}. ${esc(v.title||'(Tanpa tajuk)')}</div>${v.note?`<div class="s">${esc(v.note)}</div>`:''}<div class="chips"><span class="chip ${p?'ok':'warn'}">${p?'✓ Dibayar'+(v.paidOn?' '+pd(v.paidOn).getDate()+' '+BLN[pd(v.paidOn).getMonth()]:''):'Belum dibayar'}</span>${i>=vLimit()?'<span class="chip bad">Lebih had</span>':''}</div></div><div class="right"><b>${rm(vRate())}</b></div></button>
+      ${op?form('videos',v,{extra:v.link?link(v.link,'Buka video')+' ':''}):`<div class="takwim"><span class="msg">${v.link?link(v.link,'Buka video ↗'):'<span class="badtxt">Tiada link</span>'}</span>${p?`<button class="linkbtn" data-vunpay="${v.id}">Batal dibayar</button>`:`<button class="btn sm primary" data-vpay="${v.id}" ${busy[v.id]?'disabled':''}>Tanda dibayar</button>`}</div>`}</article>`}).join(''):empty(`Tiada video untuk ${monthLabel(vm)}.`));
+}
+async function videoPaid(ids,paid,busyKey){
+  if(busyKey)busy[busyKey]=1;ids.forEach(i=>busy[i]=1);render();
+  for(const id of ids){const x=S.videos.find(r=>r.id===id);if(!x)continue;const old={status:x.status,paidOn:x.paidOn};
+    Object.assign(x,paid?{status:'Dibayar',paidOn:todayISO()}:{status:'Belum dibayar',paidOn:''});if(!await doSave('videos',x))Object.assign(x,old)}
+  if(busyKey)busy[busyKey]=0;ids.forEach(i=>busy[i]=0);render();
+}
+async function payVideos(){
+  const un=(S.videos||[]).filter(v=>v.status!=='Dibayar').sort((a,b)=>(a.date||'').localeCompare(b.date||''));if(!un.length)return;
+  const months=[...new Set(un.map(v=>monthLabel((v.date||todayISO()).slice(0,7))))].join(', ');
+  const x=newItem('payments');Object.assign(x,{to:'Faris',type:'Staf',what:`Video isyarat ${months} (${un.length} video × ${rm(vRate())})`,amount:un.length*vRate(),status:'Dibayar',
+    note:un.map(v=>`${v.date} · ${v.title}`).join('\n')});openId=null;flt.pay='semua';
+  busy.vfin=1;render();
+  if(await doSave('payments',x))await videoPaid(un.map(v=>v.id),true);
+  busy.vfin=0;render();
+}
+
 /* ================= FINANCE ================= */
 function vFRingkas(){
   const m=thisMonth(),inM=S.receipts.filter(r=>(r.date||'').startsWith(m)).reduce((s,r)=>s+num(r.amount),0);
@@ -387,6 +425,10 @@ function vBayaran(){
   let h=sec('Bayaran jam staf',monthLabel(thisMonth()),`<div class="target"><div class="famrow"><label for="rate">Kadar sejam (RM)<input id="rate" inputmode="decimal" value="${rate||''}" placeholder="cth. 10"></label>
     ${STAFF.map(w=>{const hh=monthHours(w,thisMonth());return `<div class="paystaf"><b>${w}</b><span class="s">${fmtH(hh)} jam${rate?' · '+rm(hh*rate):''}</span><button class="btn sm" data-paystaf="${w}" ${!rate||!hh?'disabled':''}>Cipta bayaran</button></div>`}).join('')}</div>
     <p class="s">Jam diambil terus daripada clock in/out Anas & Uzma.</p></div>`);
+  if(can('videos')){const un=S.videos.filter(v=>v.status!=='Dibayar').sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+    h+=sec('Video isyarat Faris',`${rm(vRate())} satu video`,`<div class="target"><div class="famrow"><div class="paystaf" style="border-left:0;padding-left:0"><b>${un.length} video belum dibayar · ${rm(un.length*vRate())}</b>
+      <span class="s">${un.length?un.map(v=>`${pd(v.date)?pd(v.date).getDate()+' '+BLN[pd(v.date).getMonth()]:''} · ${esc(v.title||'(Tanpa tajuk)')}${v.link?' '+link(v.link,'↗'):''}`).join('<br>'):'Semua video dah dibayar.'}</span></div></div>
+      ${un.length?`<p style="margin:12px 0 0"><button class="btn primary" data-vfin="1" ${busy.vfin?'disabled':''}>${busy.vfin?'Menyimpan…':`Rekod bayaran ${rm(un.length*vRate())} & tanda dibayar`}</button></p>`:''}</div>`);}
   const f={belum:p=>p.status!=='Dibayar',dibayar:p=>p.status==='Dibayar',semua:()=>true}[flt.pay];
   const list=S.payments.filter(f).sort((a,b)=>flt.pay==='belum'?(a.dueBy||'9').localeCompare(b.dueBy||'9'):(b.date||'').localeCompare(a.date||''));
   h+=`<div class="toolbar">${seg('pay',[['belum','Belum dibayar'],['dibayar','Dibayar'],['semua','Semua']],flt.pay)}<span class="spacer"></span><button class="btn primary" data-add="payments">+ Bayaran</button></div>`;
@@ -458,7 +500,7 @@ document.addEventListener('click',async e=>{
   if(d.askdel){confirmDel=d.askdel;render();return}
   if(d.del){const kind=d.del,id=d.delid;clearTimeout(timers[id]);delete timers[id];S[kind]=S[kind].filter(x=>x.id!==id);confirmDel=null;openId=null;render();
     setSave('Memadam…');try{await call({a:'del',kind,id});setSave('Dipadam')}catch(err){setSave('Gagal padam. Muat semula.')}return}
-  if(d.add){const x=newItem(d.add);if(d.add==='tasks')flt.tasks='semua';if(d.add==='acts')flt.acts='semua';if(d.add==='payments')flt.pay='semua';if(d.add==='trips')vm=x.date.slice(0,7);render();document.querySelector(`[data-id="${x.id}"] .form input:not([type=date]):not([type=file])`)?.focus();return}
+  if(d.add){const x=newItem(d.add);if(d.add==='tasks')flt.tasks='semua';if(d.add==='acts')flt.acts='semua';if(d.add==='payments')flt.pay='semua';if(d.add==='trips')vm=x.date.slice(0,7);if(d.add==='videos')vm=x.date.slice(0,7);render();document.querySelector(`[data-id="${x.id}"] .form input:not([type=date]):not([type=file])`)?.focus();return}
   if(d.send){sendTakwim(d.kind,d.send);return}
   if(d.targetYes){setTarget('sebenar');return} if(d.targetNo){confirmTarget=false;render();return}
   if(d.savefam){busy.fam=1;try{const j=await call({a:'fam',from:$('#fam-from').value,to:$('#fam-to').value});CFG=j.cfg;setSave('Masa keluarga disimpan')}catch(err){setSave('Gagal simpan')}busy.fam=0;render();return}
@@ -473,6 +515,10 @@ document.addEventListener('click',async e=>{
   if(d.claimdoc){claimDoc();return}
   if(d.paystaf){const w=d.paystaf,rate=num(store.get('hm-rate')),hh=Math.round(monthHours(w,thisMonth())*100)/100;const x=newItem('payments');
     Object.assign(x,{to:w,type:'Staf',what:`Bayaran jam kerja ${monthLabel(thisMonth())} (${fmtH(hh)} jam × ${rm(rate)})`,amount:Math.round(hh*rate*100)/100});flt.pay='semua';doSave('payments',x);render();return}
+  if(d.vpay){videoPaid([d.vpay],true);return}
+  if(d.vunpay){videoPaid([d.vunpay],false);return}
+  if(d.vpayall){videoPaid(vMonth(vm).filter(v=>v.status!=='Dibayar').map(v=>v.id),true,'vpay');return}
+  if(d.vfin){payVideos();return}
   if(d.reload){load(true);return}
   if(d.role){pin=ROLE_PINS[d.role];store.set('hm-pin',pin);bootErr='';ME=null;load();return}
   if(d.logout){store.del('hm-pin');pin='';S=null;ME=null;phase='setup';bootErr='';render();return}
@@ -485,7 +531,7 @@ document.addEventListener('change',e=>{
   if(el.dataset.tick){const t=S.tasks.find(x=>x.id===el.dataset.tick);if(t){t.status='Selesai';doSave('tasks',t);render()}return}
   const f=el.dataset.f,form=el.closest('.form'),item=el.closest('[data-id]');if(!f||!form||!item)return;
   const kind=form.dataset.kind,x=S[kind].find(r=>r.id===item.dataset.id);if(!x)return;
-  x[f]=f==='prog'?+el.value:el.value;queueSave(kind,x);
+  x[f]=f==='prog'?+el.value:el.value;if(kind==='videos'&&f==='status')x.paidOn=x.status==='Dibayar'?(x.paidOn||todayISO()):'';queueSave(kind,x);
   if(f==='date'&&kind==='trips')vm=x.date.slice(0,7)||vm;
   const id=el.id;render();const n=id&&document.getElementById(id);if(n)n.focus();
 });
